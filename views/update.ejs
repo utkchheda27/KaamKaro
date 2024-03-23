@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="data:,">
+    <title>Document</title>
+</head>
+
+<body>
+    <h1>Update <%=subj.name%>
+    </h1>
+    <div>
+        Change subject details for updation..
+        <form action="/updateSubject" method="post">
+            <!-- Hidden input field to include subj_id in the form submission -->
+            <p><input type="hidden" name="id" value="<%= subj._id %>"></p>
+            <p><input name="subj_name" value="<%= subj.name %>" placeholder="<%= subj.name %>">Subject name</p>
+            <p><input name="grade" value="<%= subj.grade %>" placeholder="<%= subj.grade %>">Subject grade</p>
+            <button type="submit">Update</button>
+        </form>
+    </div>
+    <br>
+    <div>
+        Back to Home Page <a href="/">Click here</a>
+    </div>
+</body>
+
+</html>

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="data:,">
+    <title>Document</title>
+</head>
+
+<body>
+    <h1>The Subject Page
+    </h1>
+    <div>
+        Subject name: <%=subj.name%>
+            <br>
+            Grade: <%=subj.grade%>
+    </div>
+    <div>
+        <br>
+        Delete the above subject??
+        <form action="/deleteSubject" method="post">
+            <!-- Hidden input field to include subj_name in the form submission -->
+            <input type="hidden" name="subj_name" value="<%= subj.name %>">
+            <button type="submit">Delete</button>
+        </form>
+    </div>
+    <br>
+    <div>
+        Update the subject?<a href="/update/<%=subj._id %>">Click here</a>
+    </div>
+    <br>
+    <div>
+        Back to Home Page <a href="/">Click here</a>
+    </div>
+</body>
+
+</html>
