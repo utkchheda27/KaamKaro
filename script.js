@@ -2,10 +2,14 @@
 const mongoose = require("mongoose");
 const bodyParser = require("body-parser");
 const Task = require("./models/taskSchema");
+const User = require("./models/userSchema.js")
 const fs = require("fs");
 const axios = require("axios");
 const passport = require("passport");
 const express = require("express");
+const authMiddleware=require("./controllers/auth.js");
+const {initializingPassport,isAuthenticated}=require("./passportConfig.js")
+const expressSession=require("express-session");
 const app = express();
 
 //DATABASE
@@ -27,6 +31,9 @@ mongoose
     console.log(err);
   });
 
+//using passport just after connecting to mongo db
+initializingPassport(passport);
+
 //Defining path for setting up location of views directory
 const path = require("path");
 app.set("view engine", "ejs");
@@ -34,23 +41,37 @@ app.use(express.static(path.join(__dirname, "./views")));
 app.use(express.static("client"));
 
 //Session Middleware
-app.use(
-  session({
-    secret:"Vader",
-    saveUninitialized:false,
-    resave:false,
-    cookie:{
-      maxAge:60000*60
-    }
-  })
-)
+// app.use(
+//   session({
+//     secret:"Vader",
+//     saveUninitialized:false,
+//     resave:false,
+//     cookie:{
+//       maxAge:60000*60
+//     }
+//   })
+// )
 
-app.use(passport.initialize());
-app.use(passport.session());
+// app.use(passport.initialize());
+// app.use(passport.session());
+
+// app.post('/api/auth',passport.authenticate('local'),(req,res)=>{
+  
+// })
 
 // Parse URL-encoded bodies (for form data)
+//needed when using a form and using req.body
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
+
+//passport js middleware
+app.use(expressSession({
+  secret:"secret",
+  resave:false,
+  saveUninitialized:false
+}))
+app.use(passport.initialize());
+app.use(passport.session());
 
 //Logging all the route hits while using the application
 //used fs library  and maintaining a log.txt file for the same
@@ -67,8 +88,47 @@ app.use((req, res, next) => {
 
 //Routing
 
+app.get("/register",(req,res)=>{
+  res.render("register")
+})
+
+app.get("/login",(req, res) => {
+  res.render("login");
+});
+
+app.get("/logout", (req, res, next) => {
+  req.logout((err) => {
+    if (err) {
+      return next(err); // Pass the error to the next middleware
+    }
+    res.redirect("/login");
+  });
+});
+
+app.post("/register",async(req,res)=>{
+  console.log(req.body)
+  const user = await User.findOne({ username: req.body.username });
+  if(user){
+    res.send("User already exists");
+  }else{
+    const newUser =  await new User({
+      username: req.body.username,
+      name: req.body.name,
+      password: req.body.password
+    });
+    await newUser.save();
+  }
+    res.redirect("/");
+})
+
+app.post("/login", 
+  passport.authenticate("local",{
+    failureRedirect:"/login",
+    successRedirect:"/"
+  }));
+
 //Display all the tasks on home route
-app.get("/", async (req, res, next) => {
+app.get("/",isAuthenticated, async (req, res, next) => {
   console.log("Home Route");
   const allTasks = await Task.find({});
   res.render("home", { allTasks });
