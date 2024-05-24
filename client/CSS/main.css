@@ -57,6 +57,15 @@ body {
     display: flex;
     justify-content: space-around;
     margin-right: 3%;
+    font-size: 1.5rem;
+}
+
+#logout-img {
+    width: 40%;
+    max-width: 100px;
+    height: auto;
+    margin-top: 5px;
+    margin-left: 5px;
 }
 
 .theme-selector {

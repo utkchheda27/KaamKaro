@@ -24,9 +24,13 @@
 <body>
     <div id="header">
         <div class="flexrow-container">
+            Hey, <%=current_user.name%> 
             <div class="standard-theme theme-selector"></div>
             <div class="light-theme theme-selector"></div>
             <div class="darker-theme theme-selector"></div>
+            <a href="/logout" class="logout-container">
+                <img src="logout.png" alt="Logout" id="logout-img">
+            </a>
         </div>
         <h1 id="title">Just do it.</h1>
     </div>

@@ -1,3 +1,4 @@
+const User = require("../models/userSchema.js");
 app.post("/saveTask", async (req, res) => {
   try {
     // Save the details to the database
@@ -7,9 +8,18 @@ app.post("/saveTask", async (req, res) => {
     // Create a new subject document
     const newTask = new Task({
       description,
+      User:req.user_id
     });
+    console.log(newTask)
     await newTask.save();
     console.log("Details saved successfully!");
+
+    //adding task to user ka Tasks list
+    const user = await User.findById(req.user._id);
+    user.tasks.push(newTask);
+    await user.save();
+
+    //redirecting to home page after creating task
     res.redirect("/");
   } catch (error) {
     console.error("Error saving details:", error);

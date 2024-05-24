@@ -38,26 +38,8 @@ initializingPassport(passport);
 const path = require("path");
 app.set("view engine", "ejs");
 app.use(express.static(path.join(__dirname, "./views")));
+app.use(express.static(path.join(__dirname, "./assets")));
 app.use(express.static("client"));
-
-//Session Middleware
-// app.use(
-//   session({
-//     secret:"Vader",
-//     saveUninitialized:false,
-//     resave:false,
-//     cookie:{
-//       maxAge:60000*60
-//     }
-//   })
-// )
-
-// app.use(passport.initialize());
-// app.use(passport.session());
-
-// app.post('/api/auth',passport.authenticate('local'),(req,res)=>{
-  
-// })
 
 // Parse URL-encoded bodies (for form data)
 //needed when using a form and using req.body
@@ -65,11 +47,16 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
 //passport js middleware
-app.use(expressSession({
-  secret:"secret",
-  resave:false,
-  saveUninitialized:false
-}))
+app.use(
+  expressSession({
+    secret: "secret",
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      maxAge: 30*7*24*1000*60*60,
+    },
+  })
+);
 app.use(passport.initialize());
 app.use(passport.session());
 
@@ -105,21 +92,33 @@ app.get("/logout", (req, res, next) => {
   });
 });
 
-app.post("/register",async(req,res)=>{
-  console.log(req.body)
-  const user = await User.findOne({ username: req.body.username });
-  if(user){
-    res.send("User already exists");
-  }else{
-    const newUser =  await new User({
+//don't mix up authenticating and saving a new user to db
+//use passport logic only for authentication
+app.post("/register", async (req, res, next) => {
+  try {
+    const user = await User.findOne({ username: req.body.username });
+    if (user) {
+      return res.send("User already exists");
+    }
+
+    const newUser = new User({
       username: req.body.username,
       name: req.body.name,
-      password: req.body.password
+      password: req.body.password,
     });
     await newUser.save();
+
+    // After successful registration, log the user in
+    req.login(newUser, (err) => {
+      if (err) {
+        return next(err);
+      }
+      return res.redirect("/");
+    });
+  } catch (err) {
+    next(err);
   }
-    res.redirect("/");
-})
+});
 
 app.post("/login", 
   passport.authenticate("local",{
@@ -131,44 +130,71 @@ app.post("/login",
 app.get("/",isAuthenticated, async (req, res, next) => {
   console.log("Home Route");
   const allTasks = await Task.find({});
-  res.render("home", { allTasks });
+  const current_user=req.user;
+  res.render("home", { allTasks,current_user});
   next();
 });
 
 //saving new Task to DB
-app.post("/saveTask", (req, res) => {
-  const description = req.body.data; //req.body as we are fetching from the submitted form
-  console.log("New Task Added: ", description);
-  // Create a new subject document
-  const newTask = new Task({
-    description,
-  });
+app.post("/saveTask",isAuthenticated, async(req, res) => {
+  try{
+     const description = req.body.data; //req.body as we are fetching from the submitted form);
+     const userId = req.user._id;
+     // Create a new subject document
+     const newTask = new Task({
+       description,
+       User:userId
+     });
+     await newTask.save();
+     console.log("Details saved successfully!");
 
-  newTask.save();
-  res.redirect("/");
+     //adding task to user ka Tasks list
+     const user = await User.findById(userId);
+     user.tasks.push(newTask);
+     await user.save();
+     res.redirect("/");
+  }catch(err){
+     console.error("Error saving task:", err);
+     res.status(500).send("Internal Server Error");
+  }
 });
 
-//Delete a Task by clicking on button
 app.post("/deleteTask", async (req, res) => {
-  console.log("Delete task");
-  console.log(req.body);
-  const { id } = req.body;
+  try {
+    console.log("Delete task");
+    const { id } = req.body;
 
-  // Use id from selected button to findByIdAndDelete
-  await Task.findByIdAndDelete(id);
+    // Validate task ID
+    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).send("Invalid task ID");
+    }
 
-  //Redirecting to '/' page after await activity of deleting in DB is performed..
-  res.redirect("/");
+    // Use id from selected button to findByIdAndDelete the task
+    await Task.findByIdAndDelete(id);
+
+    // Deleting task from tasks list of user
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).send("User not found");
+    }
+
+    user.tasks = user.tasks.filter((task) => !task.equals(id));
+    await user.save();
+
+    // Redirecting to '/' page after await activity of deleting in DB is performed
+    res.redirect("/");
+  } catch (err) {
+    console.error("Error deleting task:", err);
+    res.status(500).send("Internal Server Error");
+  }
 });
 
 app.get(`/checkBtn/:id`, async (req, res) => {
   try {
     const taskId = req.params.id;
-    console.log(taskId);
     const task = await Task.findById(taskId);
     if (task) {
       const checkButtonStatus = task["isChecked"];
-      console.log("Check button status:", checkButtonStatus);
       res.json({ btnStatus: checkButtonStatus });
     } else {
       console.log("Task not found");
@@ -180,9 +206,7 @@ app.get(`/checkBtn/:id`, async (req, res) => {
 
 app.post("/toggleCheck", async (req, res) => {
   console.log("Toggling Check Button");
-  console.log(req.body);
   const { id, btnStatus } = req.body;
-
   await Task.findByIdAndUpdate(id, {
     isChecked: btnStatus,
   });
@@ -191,7 +215,8 @@ app.post("/toggleCheck", async (req, res) => {
 });
 
 app.get("/getTodos", async (req, res) => {
-  const allTasks = await Task.find({});
+  const user = await User.findById(req.user._id);
+  const allTasks = await Task.find({User:user});
   res.json(allTasks);
 });
 

@@ -6,6 +6,7 @@ const toDoList = document.querySelector(".todo-list");
 const standardTheme = document.querySelector(".standard-theme");
 const lightTheme = document.querySelector(".light-theme");
 const darkerTheme = document.querySelector(".darker-theme");
+const logoutImg = document.getElementById("logout-img");
 
 // Event Listeners
 
@@ -194,4 +195,10 @@ function changeTheme(color) {
       }
     });
   });
+  // Change logout image based on theme
+  if (color === "light") {
+    logoutImg.src = "logout.png";
+  } else {
+    logoutImg.src = "logout-white.png";
+  }
 }
